@@ -44,6 +44,7 @@ struct pwm_exp
     int period_fd;
     int duty_fd;
     int polarity_fd;
+    int run_fd;
     unsigned long duty;
     unsigned long period_ns;
     struct pwm_exp *next;
@@ -120,6 +121,23 @@ int pwm_set_polarity(const char *key, int polarity) {
     return 0;
 }
 
+int pwm_set_run(const char *key, int run) {
+    int len;
+    char buffer[7];
+    struct pwm_exp *pwm;
+
+    pwm = lookup_exported_pwm(key);
+
+    if (pwm == NULL) {
+        return -1;
+    }
+
+    len = snprintf(buffer, sizeof(buffer), "%d", run);
+    write(pwm->run_fd, buffer, len);
+
+    return 0;
+}
+
 int pwm_set_duty_cycle(const char *key, float duty) {
     int len;
     char buffer[20];
@@ -150,14 +168,15 @@ int pwm_start(const char *key, float duty, float freq, int polarity)
     char period_path[50];
     char duty_path[50];
     char polarity_path[55];
-    int period_fd, duty_fd, polarity_fd;
+    char run_path[55];
+    int period_fd, duty_fd, polarity_fd, run_fd;
     struct pwm_exp *new_pwm, *pwm;
 
     if(!pwm_initialized) {
         initialize_pwm();
     }
 
-    snprintf(fragment, sizeof(fragment), "bone_pwm_%s", key);
+    snprintf(fragment, sizeof(fragment), "sc_pwm_%s", key);
     
 
     if (!load_device_tree(fragment)) {
@@ -175,6 +194,7 @@ int pwm_start(const char *key, float duty, float freq, int polarity)
     snprintf(period_path, sizeof(period_path), "%s/period", pwm_test_path);
     snprintf(duty_path, sizeof(duty_path), "%s/duty", pwm_test_path);
     snprintf(polarity_path, sizeof(polarity_path), "%s/polarity", pwm_test_path);
+    snprintf(run_path, sizeof(run_path), "%s/run", pwm_test_path);
 
     //add period and duty fd to pwm list    
     if ((period_fd = open(period_path, O_RDWR)) < 0)
@@ -192,6 +212,13 @@ int pwm_start(const char *key, float duty, float freq, int polarity)
         close(period_fd);
         close(duty_fd);
         return -1;
+    }
+
+    if((run_fd = open(run_path, O_RDWR)) < 0) {
+        close(period_fd);
+        close(duty_fd);
+        close(polarity_fd);
+        return -1;
     }    
 
     // add to list
@@ -205,6 +232,7 @@ int pwm_start(const char *key, float duty, float freq, int polarity)
     new_pwm->period_fd = period_fd;
     new_pwm->duty_fd = duty_fd;
     new_pwm->polarity_fd = polarity_fd;
+    new_pwm->run_fd = run_fd;
     new_pwm->next = NULL;
 
     if (exported_pwms == NULL)
@@ -231,7 +259,7 @@ int pwm_disable(const char *key)
     struct pwm_exp *pwm, *temp, *prev_pwm = NULL;
     char fragment[18];
 
-    snprintf(fragment, sizeof(fragment), "bone_pwm_%s", key);
+    snprintf(fragment, sizeof(fragment), "sc_pwm_%s", key);
     unload_device_tree(fragment);
 
     // remove from list

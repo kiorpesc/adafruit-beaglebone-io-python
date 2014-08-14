@@ -96,6 +96,65 @@ static PyObject *py_stop_channel(PyObject *self, PyObject *args, PyObject *kwarg
     Py_RETURN_NONE;
 }
 
+static PyObject *py_set_polarity(PyObject *self, PyObject *args, PyObject *kwargs){
+    char key[8];
+    char *channel;
+    int polarity = 0;
+    static char *kwlist[] = {"channel", "polarity", NULL};
+
+    if(!PyArg_ParseTupleAndKeywords(args, kwargs, "s|i", kwlist, &channel, &polarity))
+        return NULL;
+
+    if (polarity != 0 && polarity != 1)
+    {
+        PyErr_SetString(PyExc_ValueError, "polarity must be either 0 or 1");
+        return NULL;
+    } 
+
+    if (!get_pwm_key(channel, key)) {
+        PyErr_SetString(PyExc_ValueError, "Invalid PWM key or name.");
+        return NULL;    
+    }
+
+    if (pwm_set_polarity(key, polarity) == -1) {
+        PyErr_SetString(PyExc_RuntimeError, "You must start() the PWM channel first");
+        return NULL;
+    }
+
+    Py_RETURN_NONE;
+
+}
+
+
+static PyObject *py_set_run(PyObject *self, PyObject *args, PyObject *kwargs){
+    char key[8];
+    char *channel;
+    int run = 0;
+    static char *kwlist[] = {"channel", "run", NULL};
+
+    if(!PyArg_ParseTupleAndKeywords(args, kwargs, "s|i", kwlist, &channel, &run))
+        return NULL;
+
+    if (run != 0 && run != 1)
+    {
+        PyErr_SetString(PyExc_ValueError, "run must be either 0 or 1");
+        return NULL;
+    } 
+
+    if (!get_pwm_key(channel, key)) {
+        PyErr_SetString(PyExc_ValueError, "Invalid PWM key or name.");
+        return NULL;    
+    }
+
+    if (pwm_set_run(key, run) == -1) {
+        PyErr_SetString(PyExc_RuntimeError, "You must start() the PWM channel first");
+        return NULL;
+    }
+
+    Py_RETURN_NONE;
+
+}
+
 // python method PWM.set_duty_cycle(channel, duty_cycle)
 static PyObject *py_set_duty_cycle(PyObject *self, PyObject *args, PyObject *kwargs)
 {
@@ -164,6 +223,8 @@ PyMethodDef pwm_methods[] = {
     {"stop", (PyCFunction)py_stop_channel, METH_VARARGS | METH_KEYWORDS, "Stop the PWM channel.  channel can be in the form of 'P8_10', or 'EHRPWM2A'"},
     { "set_duty_cycle", (PyCFunction)py_set_duty_cycle, METH_VARARGS, "Change the duty cycle\ndutycycle - between 0.0 and 100.0" },
     { "set_frequency", (PyCFunction)py_set_frequency, METH_VARARGS, "Change the frequency\nfrequency - frequency in Hz (freq > 0.0)" },
+    { "set_polarity", (PyCFunction)py_set_polarity, METH_VARARGS, "Change the polarity\npolarity - 0 or 1"},
+    { "set_run", (PyCFunction)py_set_run, METH_VARARGS, "Change whether the pin is running\nrun - 0(stopped) or 1(running)"},
     {"cleanup", py_cleanup, METH_VARARGS, "Clean up by resetting all GPIO channels that have been used by this program to INPUT with no pullup/pulldown and no event detection"},
     //{"setwarnings", py_setwarnings, METH_VARARGS, "Enable or disable warning messages"},
     {NULL, NULL, 0, NULL}
